@@ -1,0 +1,39 @@
+# Reusable vouch check action.
+# Requires Nushell to be installed in the calling workflow (e.g. hustcer/setup-nu).
+# Expects the repo to have VOUCHED.td or .github/VOUCHED.td (see https://github.com/mitchellh/vouch).
+
+name: 'Vouched for'
+description: 'Check that a GitHub user is in the vouch list. Fails if not vouched or if denounced. Requires Nushell in the workflow.'
+branding:
+  icon: 'shield'
+  color: 'green'
+inputs:
+  user:
+    description: 'GitHub username to check (e.g. PR author or pusher)'
+    required: true
+  ref:
+    description: 'Ref to checkout (e.g. target branch for PRs). Pass github.event.pull_request.base.ref || github.ref so the action checks against the target branch VOUCHED file.'
+    required: false
+runs:
+  using: 'composite'
+  steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        ref: ${{ inputs.ref }}
+
+    - name: Install vouch
+      shell: bash
+      run: |
+        git clone --depth 1 https://github.com/mitchellh/vouch.git "$GITHUB_ACTION_PATH/vouch-repo"
+
+    - name: Install Nushell
+      uses: hustcer/setup-nu@v3
+      with:
+        version: "*"
+
+    - name: Check user is vouched
+      shell: bash
+      run: |
+        cd "$GITHUB_WORKSPACE" && nu -c "use \"$GITHUB_ACTION_PATH/vouch-repo/vouch\" *; check \"${{ inputs.user }}\""
